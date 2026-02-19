@@ -16,7 +16,7 @@ class ViewController: UITableViewController {
 
         title = "iQuiz"
 
-        // Settings button (Part 1 requirement)
+        // Settings button
         navigationItem.rightBarButtonItem = UIBarButtonItem(
             image: UIImage(systemName: "gearshape.fill"),
             style: .plain,
@@ -25,7 +25,7 @@ class ViewController: UITableViewController {
         )
     }
 
-    // MARK: - Settings Alert (UIAlertController) (Part 1 requirement)
+    // MARK: - Settings Alert (UIAlertController)
     @objc private func didTapSettings() {
         let alert = UIAlertController(
             title: "Settings",
@@ -69,7 +69,7 @@ class ViewController: UITableViewController {
     // MARK: - Pass data to Question scene
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         if segue.identifier == "toQuestion" {
-            // Nothing required here since we use QuizSession.shared in next screens
+            // using QuizSession.shared in next screens
         }
     }
 }

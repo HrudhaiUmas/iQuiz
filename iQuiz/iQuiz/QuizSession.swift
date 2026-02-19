@@ -13,7 +13,7 @@ final class QuizSession {
 
     private init() {}
 
-    // All quizzes for the app (in-memory for Part 2)
+    // All quizzes for the app
     let quizzes: [Quiz] = [
         Quiz(
             title: "Mathematics",
