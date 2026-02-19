@@ -7,36 +7,16 @@
 
 import UIKit
 
-// MARK: - Model
-struct QuizTopic {
-    let title: String
-    let description: String
-    let iconSystemName: String
-}
-
 class ViewController: UITableViewController {
 
-    // In-memory array (Part 1 requirement)
-    private let quizzes: [QuizTopic] = [
-        QuizTopic(title: "Mathematics",
-                  description: "Test your math skills!",
-                  iconSystemName: "function"),
-
-        QuizTopic(title: "Marvel Super Heroes",
-                  description: "Test how well you know Marvel!",
-                  iconSystemName: "bolt.fill"),
-
-        QuizTopic(title: "Science",
-                  description: "Test your science skills!",
-                  iconSystemName: "atom")
-    ]
+    private let session = QuizSession.shared
 
     override func viewDidLoad() {
         super.viewDidLoad()
 
         title = "iQuiz"
 
-        // Settings button
+        // Settings button (Part 1 requirement)
         navigationItem.rightBarButtonItem = UIBarButtonItem(
             image: UIImage(systemName: "gearshape.fill"),
             style: .plain,
@@ -45,23 +25,20 @@ class ViewController: UITableViewController {
         )
     }
 
-    // MARK: - Settings Alert
-    @objc private func didTapSettings()
-    {
+    // MARK: - Settings Alert (UIAlertController) (Part 1 requirement)
+    @objc private func didTapSettings() {
         let alert = UIAlertController(
             title: "Settings",
             message: "Settings go here",
             preferredStyle: .alert
         )
-
         alert.addAction(UIAlertAction(title: "OK", style: .default, handler: nil))
         present(alert, animated: true)
     }
 
     // MARK: - TableView Data Source
-    override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int
-    {
-        return quizzes.count
+    override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        return session.quizzes.count
     }
 
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
@@ -70,7 +47,7 @@ class ViewController: UITableViewController {
         let cell = tableView.dequeueReusableCell(withIdentifier: reuseId)
             ?? UITableViewCell(style: .subtitle, reuseIdentifier: reuseId)
 
-        let quiz = quizzes[indexPath.row]
+        let quiz = session.quizzes[indexPath.row]
 
         cell.textLabel?.text = quiz.title
         cell.detailTextLabel?.text = quiz.description
@@ -79,6 +56,21 @@ class ViewController: UITableViewController {
         cell.imageView?.image = UIImage(systemName: quiz.iconSystemName)
         cell.imageView?.tintColor = .systemBlue
 
+        cell.accessoryType = .disclosureIndicator
         return cell
     }
+
+    // MARK: - Selection -> First Question (Part 2 requirement)
+    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        session.startQuiz(quizIndex: indexPath.row)
+        performSegue(withIdentifier: "toQuestion", sender: self)
+    }
+
+    // MARK: - Pass data to Question scene
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        if segue.identifier == "toQuestion" {
+            // Nothing required here since we use QuizSession.shared in next screens
+        }
+    }
 }
+
