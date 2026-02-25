@@ -7,13 +7,13 @@
 
 import Foundation
 
-struct Question {
+struct Question: Codable {
     let text: String
     let answers: [String]
     let correctIndex: Int
 }
 
-struct Quiz {
+struct Quiz: Codable {
     let title: String
     let description: String
     let iconSystemName: String

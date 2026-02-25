@@ -12,10 +12,15 @@ final class QuizSession {
     static let shared = QuizSession()
 
     private init() {
-        quizzes = QuizSession.defaultQuizzes()
+        // Part 4: prefer local cached quizzes (offline support)
+        if let cached = LocalQuizStore.shared.load() {
+            quizzes = cached
+        } else {
+            quizzes = QuizSession.defaultQuizzes()
+        }
     }
 
-    // All quizzes for the app (mutable now so network can replace them)
+    // Mutable so network/local storage can replace it
     private(set) var quizzes: [Quiz]
 
     static func defaultQuizzes() -> [Quiz] {
@@ -71,18 +76,32 @@ final class QuizSession {
         ]
     }
 
+    // Replace quizzes after network fetch AND we will save to local storage (Part 4)
     func replaceQuizzes(with newQuizzes: [Quiz]) {
         guard newQuizzes.isEmpty == false else { return }
 
         quizzes = newQuizzes
+        LocalQuizStore.shared.save(quizzes: newQuizzes)
 
-        // Reset any in-progress state so indices stay valid
+        // Reset state so indices remain valid
         currentQuizIndex = 0
         currentQuestionIndex = 0
         numCorrect = 0
         selectedAnswerIndex = nil
     }
 
+    // forcing a reload in cache if needed
+    func reloadFromLocalCacheIfAvailable() {
+        if let cached = LocalQuizStore.shared.load()
+        {
+            quizzes = cached
+            currentQuizIndex = 0
+            currentQuestionIndex = 0
+            numCorrect = 0
+            selectedAnswerIndex = nil
+        }
+    }
+    
     // Current run state
     var currentQuizIndex: Int = 0
     var currentQuestionIndex: Int = 0

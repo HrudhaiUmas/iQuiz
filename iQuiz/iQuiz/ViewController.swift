@@ -17,18 +17,37 @@ class ViewController: UITableViewController {
 
         title = "iQuiz"
 
-        // Settings button
+        // Gear button -> Apple Settings app (Part 4 requirement)
         navigationItem.rightBarButtonItem = UIBarButtonItem(
             image: UIImage(systemName: "gearshape.fill"),
             style: .plain,
             target: self,
-            action: #selector(didTapSettings)
+            action: #selector(openAppSettings)
         )
 
-        // Extra credit: Pull to refresh
+        // Optional manual refresh button (keeps a visible "check now" style action)
+        navigationItem.leftBarButtonItem = UIBarButtonItem(
+            barButtonSystemItem: .refresh,
+            target: self,
+            action: #selector(checkNowTapped)
+        )
+
+        // Pull to refresh (extra credit from Part 3)
         let rc = UIRefreshControl()
         rc.addTarget(self, action: #selector(handlePullToRefresh), for: .valueChanged)
         refreshControl = rc
+
+        // If returning from Apple Settings, reload UI and timer settings
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appDidBecomeActive),
+            name: UIApplication.didBecomeActiveNotification,
+            object: nil
+        )
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -43,57 +62,24 @@ class ViewController: UITableViewController {
         autoRefreshTimer = nil
     }
 
-    // MARK: - Settings (URL + Check Now + persistence)
-    @objc private func didTapSettings() {
-        let alert = UIAlertController(
-            title: "Settings",
-            message: "Quiz source URL and refresh options",
-            preferredStyle: .alert
-        )
+    @objc private func appDidBecomeActive() {
+        // Picks up URL / refresh interval changes from Apple Settings app
+        configureAutoRefreshTimer()
+        tableView.reloadData()
+    }
 
-        // URL field
-        alert.addTextField { textField in
-            textField.placeholder = "Quiz JSON URL"
-            textField.text = AppSettings.sourceURLString
-            textField.keyboardType = .URL
-            textField.autocapitalizationType = .none
-            textField.autocorrectionType = .no
-            textField.clearButtonMode = .whileEditing
+    // MARK: - Part 4: Open Apple Settings app
+    @objc private func openAppSettings() {
+        guard let settingsURL = URL(string: UIApplication.openSettingsURLString) else { return }
+
+        if UIApplication.shared.canOpenURL(settingsURL) {
+            UIApplication.shared.open(settingsURL, options: [:], completionHandler: nil)
         }
+    }
 
-        // Extra credit: timed refresh interval field (minutes)
-        alert.addTextField { textField in
-            textField.placeholder = "Auto refresh (minutes, 0 = off)"
-            let interval = AppSettings.autoRefreshMinutes
-            textField.text = interval == 0 ? "0" : String(interval)
-            textField.keyboardType = .decimalPad
-        }
-
-        func readFieldsAndPersist() -> (url: String, interval: Double) {
-            let urlText = alert.textFields?.first?.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? AppSettings.defaultQuizURL
-            let intervalText = alert.textFields?.dropFirst().first?.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "0"
-            let interval = max(0, Double(intervalText) ?? 0)
-
-            AppSettings.sourceURLString = urlText.isEmpty ? AppSettings.defaultQuizURL : urlText
-            AppSettings.autoRefreshMinutes = interval
-
-            return (AppSettings.sourceURLString, interval)
-        }
-
-        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
-
-        alert.addAction(UIAlertAction(title: "Save", style: .default, handler: { [weak self] _ in
-            _ = readFieldsAndPersist()
-            self?.configureAutoRefreshTimer()
-        }))
-
-        alert.addAction(UIAlertAction(title: "Check Now", style: .default, handler: { [weak self] _ in
-            _ = readFieldsAndPersist()
-            self?.configureAutoRefreshTimer()
-            self?.downloadQuizzes(showSuccessAlert: true)
-        }))
-
-        present(alert, animated: true)
+    // MARK: - Manual check now
+    @objc private func checkNowTapped() {
+        downloadQuizzes(showSuccessAlert: true)
     }
 
     // MARK: - Pull to Refresh (Extra Credit)
@@ -118,12 +104,10 @@ class ViewController: UITableViewController {
     private func downloadQuizzes(showSuccessAlert: Bool) {
         let urlString = AppSettings.sourceURLString
 
-        // If manually triggered and not already showing refresh spinner, show one.
         if refreshControl?.isRefreshing == false {
             refreshControl?.beginRefreshing()
-            // Make spinner visible if table is at top
             if tableView.contentOffset.y >= 0 {
-                tableView.setContentOffset(CGPoint(x: 0, y: -((refreshControl?.frame.height ?? 0))), animated: true)
+                tableView.setContentOffset(CGPoint(x: 0, y: -(refreshControl?.frame.height ?? 0)), animated: true)
             }
         }
 
@@ -135,30 +119,33 @@ class ViewController: UITableViewController {
 
                 switch result {
                 case .success(let downloadedQuizzes):
+                    // Part 4: this also saves to local storage via QuizSession
                     self.session.replaceQuizzes(with: downloadedQuizzes)
                     self.tableView.reloadData()
 
                     if showSuccessAlert {
-                        let successAlert = UIAlertController(
+                        let alert = UIAlertController(
                             title: "Updated",
                             message: "Quiz data downloaded successfully.",
                             preferredStyle: .alert
                         )
-                        successAlert.addAction(UIAlertAction(title: "OK", style: .default))
-                        self.present(successAlert, animated: true)
+                        alert.addAction(UIAlertAction(title: "OK", style: .default))
+                        self.present(alert, animated: true)
                     }
 
                 case .failure(let error):
-                    // notify if network not available / issues occur
-                    let title = (error == .noInternet) ? "Network Unavailable" : "Update Failed"
+                    // If offline, app still has local cache from startup (Part 4)
+                    let title = error.localizedDescription.lowercased().contains("network")
+                        ? "Network Unavailable"
+                        : "Update Failed"
 
-                    let failureAlert = UIAlertController(
+                    let alert = UIAlertController(
                         title: title,
                         message: error.localizedDescription,
                         preferredStyle: .alert
                     )
-                    failureAlert.addAction(UIAlertAction(title: "OK", style: .default))
-                    self.present(failureAlert, animated: true)
+                    alert.addAction(UIAlertAction(title: "OK", style: .default))
+                    self.present(alert, animated: true)
                 }
             }
         }
@@ -194,20 +181,10 @@ class ViewController: UITableViewController {
         performSegue(withIdentifier: "toQuestion", sender: self)
     }
 
-    // MARK: - Pass data to Question scene
+    // MARK: - Segue prep
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         if segue.identifier == "toQuestion" {
-            // QuizSession.shared is used by the next screens
-        }
-    }
-}
-
-// Small helper so we can compare QuizFetchError values for title choice
-private extension QuizFetchError {
-    static func == (lhs: QuizFetchError, rhs: QuizFetchError) -> Bool {
-        switch (lhs, rhs) {
-        case (.noInternet, .noInternet): return true
-        default: return false
+            // QuizSession.shared is used by next screens
         }
     }
 }

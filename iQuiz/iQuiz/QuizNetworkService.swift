@@ -49,7 +49,7 @@ enum AppSettings {
     static func registerDefaults() {
         UserDefaults.standard.register(defaults: [
             sourceURLKey: defaultQuizURL,
-            autoRefreshMinutesKey: 0.0
+            autoRefreshMinutesKey: "0"
         ])
     }
 
@@ -60,11 +60,23 @@ enum AppSettings {
 
     static var autoRefreshMinutes: Double {
         get {
-            let value = UserDefaults.standard.double(forKey: autoRefreshMinutesKey)
-            return value
+            let defaults = UserDefaults.standard
+
+            // If stored as number
+            if let number = defaults.object(forKey: autoRefreshMinutesKey) as? NSNumber {
+                return max(0, number.doubleValue)
+            }
+
+            // If stored as string
+            if let stringValue = defaults.string(forKey: autoRefreshMinutesKey),
+               let doubleValue = Double(stringValue) {
+                return max(0, doubleValue)
+            }
+
+            return 0
         }
         set {
-            UserDefaults.standard.set(newValue, forKey: autoRefreshMinutesKey)
+            UserDefaults.standard.set(String(newValue), forKey: autoRefreshMinutesKey)
         }
     }
 }
